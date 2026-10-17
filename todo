@@ -1,0 +1,11 @@
+tauri.conf.json - updater pubkey
+
+/src-tauri/src/main.rs
+
+/src/ holds react ui
+
+package lock json
+package.json
+
+
+app.tsx and main.rs
