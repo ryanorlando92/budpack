@@ -127,7 +127,7 @@ fn get_hardware_key() -> Result<String, String> {
 
 #[tauri::command]
 async fn auto_login(app: tauri::AppHandle, username: String, pass: String) -> Result<(), String> {
-    let dutchie_window = app.get_webview_window("dutchie").ok_or("Dutchie window not found.")?;
+    let sweed_window = app.get_webview_window("sweed").ok_or("Linked Sweed window not found.")?;
 
     let safe_user = serde_json::to_string(&username).unwrap_or_default();
     let safe_pass = serde_json::to_string(&pass).unwrap_or_default();
@@ -188,7 +188,7 @@ async fn auto_login(app: tauri::AppHandle, username: String, pass: String) -> Re
     tokio::spawn(async move {
         for _ in 0..10 {
             
-            let _ = dutchie_window.eval(&js_payload);
+            let _ = sweed_window.eval(&js_payload);
 
             // Wait for 1 second OR the success signal, whichever finishes first.
             let sleep = sleep(Duration::from_millis(1000));
@@ -212,11 +212,11 @@ async fn auto_login(app: tauri::AppHandle, username: String, pass: String) -> Re
 
 #[tauri::command]
 async fn start_import(app: AppHandle, file_path: String, is_bh: bool) -> Result<(), String> {
-    let dutchie_window = app
-        .get_webview_window("dutchie")
-        .ok_or("Dutchie window not found. Please restart the app.")?;
+    let sweed_window = app
+        .get_webview_window("sweed")
+        .ok_or("Linked Sweed window not found. Please restart the app.")?;
 
-    dutchie_window.set_focus().map_err(|e| e.to_string())?;
+    sweed_window.set_focus().map_err(|e| e.to_string())?;
     emit_progress(&app, 0, 0, "Reading Excel File...");
 
     let mut excel: Xlsx<_> =
@@ -231,7 +231,7 @@ async fn start_import(app: AppHandle, file_path: String, is_bh: bool) -> Result<
 
     for (i, row) in range.rows().skip(1).enumerate() {
 
-        if !dutchie_window.is_focused().unwrap_or(true) {
+        if !sweed_window.is_focused().unwrap_or(true) {
             
             let (tx, rx) = oneshot::channel();
 
@@ -359,7 +359,7 @@ async fn start_import(app: AppHandle, file_path: String, is_bh: bool) -> Result<
             }
         });
 
-        dutchie_window.eval(&js_payload).map_err(|e| e.to_string())?;
+        sweed_window.eval(&js_payload).map_err(|e| e.to_string())?;
 
         let _ = timeout(Duration::from_secs(10), rx).await;
 
@@ -382,8 +382,8 @@ fn main() {
             if let tauri::WindowEvent::Destroyed = event {
                 if _window.label() == "main" {
                     let app = _window.app_handle();
-                    if let Some(dutchie) = app.get_webview_window("dutchie") {
-                        let _ = dutchie.destroy();
+                    if let Some(sweed) = app.get_webview_window("sweed") {
+                        let _ = sweed.destroy();
                     }
                 }
             }
@@ -391,14 +391,14 @@ fn main() {
         .setup(|app| {
             WebviewWindowBuilder::new(
                 app,
-                "dutchie",
+                "sweed",
                 WebviewUrl::External(
-                    "https://verano.backoffice.dutchie.com/products/inventory/receive-inventory"
+                    "https://store.sweedpos.com/inventory/purchases"
                         .parse()
                         .unwrap(),
                 ),
             )
-            .title("Packagie - Receive Inventory")
+            .title("Budpack - Receive Inventory")
             .inner_size(1100.0, 850.0)
             .maximized(true)
             .build()?;

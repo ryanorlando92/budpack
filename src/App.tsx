@@ -5,10 +5,8 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { confirm, message } from '@tauri-apps/plugin-dialog';
-import { LazyStore } from '@tauri-apps/plugin-store';
 import './App.css';
 
-const store = new LazyStore('settings.json');
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 interface MissingField {
@@ -24,49 +22,8 @@ interface FieldUpdate {
     value: string;
 }
 
-const SecureStore = {
-    async getKey(hardwareSeed: string) {
-        const enc = new TextEncoder();
-        const keyMaterial = await crypto.subtle.importKey(
-            "raw", enc.encode(hardwareSeed), { name: "PBKDF2" }, false, ["deriveKey"]
-        );
-        return await crypto.subtle.deriveKey(
-            { name: "PBKDF2", salt: enc.encode("packagie_salt"), iterations: 100000, hash: "SHA-256" },
-            keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
-        );
-    },
-    async encrypt(plainText: string, hardwareSeed: string) {
-        if (!plainText) return "";
-        const key = await this.getKey(hardwareSeed);
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const enc = new TextEncoder();
-        const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plainText));
-        const combined = new Uint8Array(iv.length + encrypted.byteLength);
-        combined.set(iv);
-        combined.set(new Uint8Array(encrypted), iv.length);
-        return btoa(String.fromCharCode(...combined));
-    },
-    async decrypt(cipherText: string, hardwareSeed: string) {
-        if (!cipherText) return "";
-        try {
-            const key = await this.getKey(hardwareSeed);
-            const combined = new Uint8Array(atob(cipherText).split('').map(c => c.charCodeAt(0)));
-            const iv = combined.slice(0, 12);
-            const data = combined.slice(12);
-            const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
-            return new TextDecoder().decode(decrypted);
-        } catch (e) {
-            console.warn("Could not decrypt password.");
-            return ""; 
-        }
-    }
-};
 
 export default function App() {
-    const hasAttemptedLogin = useRef(false);
-    const [showSettings, setShowSettings] = useState(false);
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
     const [filePath, setFilePath] = useState('');
     const [status, setStatus] = useState('Ready');
     const [progress, setProgress] = useState(0);
@@ -77,74 +34,6 @@ export default function App() {
     const [fixInputValue, setFixInputValue] = useState('');
     const [missingFields, setMissingFields] = useState<MissingField[]>([]);
     const [pendingFixes, setPendingFixes] = useState<FieldUpdate[]>([]);
-
-    useEffect(() => {
-        if (!hasAttemptedLogin.current) {
-            hasAttemptedLogin.current = true;
-            triggerAutoLogin();
-        }
-    }, []);
-
-    const triggerAutoLogin = async () => {
-        try {
-            sleep(100);
-            const savedUsername = await store.get<string>('username');
-            const savedEncryptedPass = await store.get<string>('password');
-
-            if (savedUsername && savedEncryptedPass) {
-                const hardwareKey = await invoke<string>('get_hardware_key');
-                const decryptedPass = await SecureStore.decrypt(savedEncryptedPass, hardwareKey);
-                
-                if (decryptedPass) {
-                    console.log("Credentials found. Triggering auto-login...");
-                    await invoke('auto_login', { username: savedUsername, pass: decryptedPass });
-                    hasAttemptedLogin.current = true;
-                }
-            }
-        } catch (error) {
-            console.error("Auto-login sequence failed:", error);
-        }
-    };
-
-    const openSettings = async () => {
-        try {
-            const savedUser = await store.get<string>('username');
-            const savedEncryptedPass = await store.get<string>('password');
-
-            if (savedUser) setUsername(savedUser);
-            
-            if (savedEncryptedPass) {
-                const hardwareKey = await invoke<string>('get_hardware_key');
-                const decryptedPass = await SecureStore.decrypt(savedEncryptedPass, hardwareKey);
-                if (decryptedPass) setPassword(decryptedPass);
-            }
-            
-            setShowSettings(true);
-        } catch (error) {
-            console.error("Failed to load settings into UI:", error);
-            setShowSettings(true); 
-        }
-    };
-
-    const saveSettings = async () => {
-        const hardwareKey = await invoke<string>('get_hardware_key');
-        
-        await store.set('username', username);
-        
-        if (password) {
-            const encrypted = await SecureStore.encrypt(password, hardwareKey);
-            await store.set('password', encrypted);
-        }
-        
-        await store.save(); 
-        
-        await message("Your credentials have been securely encrypted and saved.", {
-            title: 'Settings Saved',
-            kind: 'info'
-        });
-
-        setShowSettings(false);
-    };
 
     useEffect(() => {
         const unlisten = listen('import-progress', (event: any) => {
@@ -259,9 +148,9 @@ return (
             }}>
                 <div style={{ textAlign: 'center', marginBottom: '30px' }}>
                     <h2 style={{ margin: '0 0 8px 0', color: '#fff', fontSize: '24px', fontWeight: '700' }}>
-                        Packagie
+                        Budpack
                     </h2>
-                    <p style={{ margin: 0, color: '#888', fontSize: '14px' }}>Automated Dutchie inventory receiving</p>
+                    <p style={{ margin: 0, color: '#888', fontSize: '14px' }}>Automated Sweed inventory receiving</p>
                 </div>
 
                 {/* FILE SELECTION ROW */}
@@ -296,47 +185,8 @@ return (
                         Beyond Hello Formatting
                     </label>
 
-                    <button 
-                        className="pro-btn btn-outline"
-                        style={{ padding: '6px 12px', fontSize: '13px' }}
-                        onClick={() => showSettings ? setShowSettings(false) : openSettings()}
-                    >
-                        {showSettings ? 'Hide Settings' : '⚙️ Settings'}
-                    </button>
-                </div>
 
-                {/* SETTINGS PANEL (CONDITIONAL) */}
-                {showSettings && (
-                    <div style={{ 
-                        backgroundColor: '#151515', border: '1px solid #2a2a2a', 
-                        padding: '20px', borderRadius: '8px', marginBottom: '25px' 
-                    }}>
-                        <h3 style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                            Dutchie Authentication
-                        </h3>
-                        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                            <input 
-                                type="text" 
-                                className="pro-input"
-                                placeholder="Username" 
-                                value={username} 
-                                onChange={(e) => setUsername(e.target.value)}
-                                style={{ flex: 1, padding: '10px' }} 
-                            />
-                            <input 
-                                type="password" 
-                                className="pro-input"
-                                placeholder="Password" 
-                                value={password} 
-                                onChange={(e) => setPassword(e.target.value)} 
-                                style={{ flex: 1, padding: '10px' }} 
-                            />
-                        </div>
-                        <button className="pro-btn btn-secondary" onClick={saveSettings} style={{ width: '100%', padding: '10px' }}>
-                            Securely Save Credentials
-                        </button>
-                    </div>
-                )}
+                </div>
 
                 {/* MAIN ACTIONS */}
                 <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
@@ -440,7 +290,7 @@ async function checkForAppUpdates() {
         }
 
         const userWantsToUpdate = await confirm(
-            `Packagie ${update.version} is available!\n\nRelease Notes:\n${update.body}\n\nDo you want to download and install it now?`, 
+            `Budpack ${update.version} is available!\n\nRelease Notes:\n${update.body}\n\nDo you want to download and install it now?`, 
             {
                 title: 'Update Available',
                 kind: 'info',
@@ -473,7 +323,7 @@ async function checkForAppUpdates() {
         
     } catch (error: any) {
         console.error("Failed to check for updates:", error);
-        await message(`Failed to update Packagie: ${error.message}`, {
+        await message(`Failed to update Budpack: ${error.message}`, {
             title: 'Update Error',
             kind: 'error'
         });

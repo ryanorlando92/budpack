@@ -359,6 +359,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "budpack"
+version = "0.0.1"
+dependencies = [
+ "calamine",
+ "chrono",
+ "machine-uid",
+ "mpsc",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-store",
+ "tauri-plugin-updater",
+ "tokio",
+ "umya-spreadsheet",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2713,27 +2734,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "packagie"
-version = "2.3.1"
-dependencies = [
- "calamine",
- "chrono",
- "machine-uid",
- "mpsc",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-store",
- "tauri-plugin-updater",
- "tokio",
- "umya-spreadsheet",
 ]
 
 [[package]]
