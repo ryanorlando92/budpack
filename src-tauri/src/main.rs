@@ -167,11 +167,11 @@ async fn start_import(app: AppHandle, file_path: String, is_bh: bool) -> Result<
             break;
         }
 
-        let qty = row.get(3).map(|d| d.to_string()).unwrap_or_default();
+        // let qty = row.get(3).map(|d| d.to_string()).unwrap_or_default();
         let ndc = row.get(5).map(|d| d.to_string()).unwrap_or_default();
         let lot = row.get(4).map(|d| d.to_string()).unwrap_or_default();
         let exp_date = format_excel_date(row.get(7).unwrap_or(&Data::Empty));
-        let pack_date = format_excel_date(row.get(6).unwrap_or(&Data::Empty));
+        // let pack_date = format_excel_date(row.get(6).unwrap_or(&Data::Empty));
         let package_id_val = if is_bh { &lot } else { &ndc };
 
         emit_progress(
@@ -181,33 +181,55 @@ async fn start_import(app: AppHandle, file_path: String, is_bh: bool) -> Result<
             &format!("Processing Row {}...", current_row),
         );
 
-        let js_payload = format!(
+
+        // need to find table row with a column that has title containing metrc# then get to elements that are also part of that row
+            let js_payload = format!(
             r#"
             (async function() {{
                 const delay = ms => new Promise(r => setTimeout(r, ms));
                 
-                const injectField = async (identifier, val, isDate = false) => {{
+                // 1. Locate the specific cell matching the current METRC loop value
+                const metrcCell = document.querySelector('td[title="{metrc}"]');
+                
+                if (!metrcCell) {{
+                    console.warn("Row for METRC {metrc} not found on this page.");
+                    window.__TAURI__.event.emit("row_complete");
+                    return;
+                }}
+                
+                // 2. Traverse up to the parent table row (tr)
+                const targetRow = metrcCell.closest("tr");
+                
+                if (!targetRow) {{
+                    window.__TAURI__.event.emit("row_complete");
+                    return;
+                }}
+                
+                // 3. Scoped inject function targeting ONLY elements inside targetRow
+                const injectField = async (row, selector, val) => {{
                     if (!val || val === "") return;
-                    let el = document.getElementById(identifier);
-                    if (!el) {{ try {{ el = document.querySelector(identifier); }} catch(e) {{}} }}
+                    
+                    const el = row.querySelector(selector);
                     if (!el) return;
                     
                     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
                     nativeInputValueSetter.call(el, val);
                     
-                    const inputEvent = new Event("input", {{ bubbles: true }});
-                    el.dispatchEvent(inputEvent);
-                    }}
+                    // Dispatch multiple events to ensure Sweed's frontend state updates
+                    el.dispatchEvent(new Event("input", {{ bubbles: true }}));
+                    el.dispatchEvent(new Event("change", {{ bubbles: true }}));
+                    el.dispatchEvent(new Event("blur", {{ bubbles: true }})); 
+                }};
 
-                await injectField("input[name=externalBarcode]", "{package_id_val}");
-                await injectField("input[name=internalTrackCode]", "{ndc}"); 
-                await injectField("input[name=expirationDate]", "{exp_date}", true);
+                // 4. Inject barcode, track code, and expiration explicitly inside this row
+                await injectField(targetRow, "input[name='externalBarcode']", "{package_id_val}");
+                await injectField(targetRow, "input[name='internalTrackCode']", "{ndc}"); 
+                await injectField(targetRow, "input[name='expirationDate']", "{exp_date}");
 
                 await delay(200);
                 window.__TAURI__.event.emit("row_complete");
-                }}
             }})();
-        "#
+            "#
         );
 
         let (tx, rx) = oneshot::channel();
@@ -253,7 +275,7 @@ fn main() {
                 app,
                 "sweed",
                 WebviewUrl::External(
-                    "https://store.sweedpos.com/inventory/purchases"
+                    "https://store.sweedpos.com/inventory/purchases" // change demo to store for live version
                         .parse()
                         .unwrap(),
                 ),

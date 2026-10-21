@@ -3,10 +3,22 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main",
+    "sweed"
   ],
+  "webviews": [
+    "sweed"
+  ],
+  "remote": {
+    "urls": [
+      "https://demo.sweedpos.com/*",
+      "https://*.sweedpos.com/*"
+    ]
+  },
+  
   "permissions": [
     "core:default",
+    "core:event:default",
     "opener:default",
     "dialog:default",
     "updater:default",
