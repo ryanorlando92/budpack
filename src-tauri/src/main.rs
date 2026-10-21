@@ -48,10 +48,11 @@ fn scan_empty_fields(file_path: String) -> Result<Vec<MissingField>, String> {
     let cols_to_check = vec![
         (0, 1, "Ext Package ID (Metrc)"),
         (3, 4, "Quantity"),
-        (4, 5, "NDC"),
-        (5, 6, "Lot/Batch ID"),
-        (6, 7, "Expiration Date"),
-        (7, 8, "Packaging Date"),
+        (4, 5, "Lot/Batch ID"),
+        (5, 6, "NDC"),
+        (6, 7, "Packaging Date"),
+        (7, 8, "Expiration Date"),
+
     ];
 
     for (i, row) in range.rows().enumerate().skip(1) {
@@ -147,7 +148,7 @@ async fn start_import(app: AppHandle, file_path: String, is_bh: bool) -> Result<
 
             app.dialog()
                 .message("Automation paused because the window lost focus.\n\nPlease ensure the Receive Inventory window is active, then click OK to resume.")
-                .title("Packagie Paused")
+                .title("Budpack Paused")
                 .kind(tauri_plugin_dialog::MessageDialogKind::Warning)
                 .show(move |_| {
                     // This closure fires ONLY when the user clicks 'OK'
@@ -167,10 +168,10 @@ async fn start_import(app: AppHandle, file_path: String, is_bh: bool) -> Result<
         }
 
         let qty = row.get(3).map(|d| d.to_string()).unwrap_or_default();
-        let ndc = row.get(4).map(|d| d.to_string()).unwrap_or_default();
-        let lot = row.get(5).map(|d| d.to_string()).unwrap_or_default();
-        let exp_date = format_excel_date(row.get(6).unwrap_or(&Data::Empty));
-        let pack_date = format_excel_date(row.get(7).unwrap_or(&Data::Empty));
+        let ndc = row.get(5).map(|d| d.to_string()).unwrap_or_default();
+        let lot = row.get(4).map(|d| d.to_string()).unwrap_or_default();
+        let exp_date = format_excel_date(row.get(7).unwrap_or(&Data::Empty));
+        let pack_date = format_excel_date(row.get(6).unwrap_or(&Data::Empty));
         let package_id_val = if is_bh { &lot } else { &ndc };
 
         emit_progress(
@@ -190,71 +191,20 @@ async fn start_import(app: AppHandle, file_path: String, is_bh: bool) -> Result<
                     let el = document.getElementById(identifier);
                     if (!el) {{ try {{ el = document.querySelector(identifier); }} catch(e) {{}} }}
                     if (!el) return;
-
-                    const wrapper = el.closest('.MuiInputBase-root');
-                    if (wrapper) {{
-                        const clearBtn = wrapper.querySelector('button[data-testid="clear-date-input"]');
-                        if (clearBtn) {{ clearBtn.click(); await delay(100); }}
-                    }}
-
-                    el.focus(); 
-                    await delay(50);
-
-                    const ns = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                    ns.call(el, val);
-                    el.dispatchEvent(new Event("input", {{ bubbles: true }}));
-                    el.dispatchEvent(new Event("change", {{ bubbles: true }}));
-                    el.dispatchEvent(new KeyboardEvent("keydown", {{ key: "Enter", keyCode: 13, bubbles: true }}));
-
-                    el.blur();
-                    await delay(150);
-                }};
-
-                if (!document.querySelector("div[data-testid=receive-inventory-details_sr_product]")) {{
-                    document.querySelector("button[data-testid=receive-inventory_button_add]")?.click();
-                    await delay(200); 
-                }}
-
-                const prod = document.querySelector("input[data-testid=receive-inventory-details_sr_product]");
-                if (prod) {{
-                    prod.focus(); prod.click();
-                    await delay(200);
                     
-                    const search = document.querySelector("input[data-testid=receive-package-modal-products-dropdown-search-input]");
-                    if (search) {{
-                        search.focus();
-                        const ns = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                        ns.call(search, "{ndc}");
-                        search.dispatchEvent(new Event("input", {{bubbles: true}}));
-                        
-                        await delay(200); 
-                        
-                        const opt = document.querySelector("li[data-option-index='0']");
-                        if (opt) {{
-                            opt.dispatchEvent(new MouseEvent('mousedown', {{ bubbles: true, cancelable: true }}));
-                            await delay(50);
-                            opt.dispatchEvent(new MouseEvent('mouseup', {{ bubbles: true, cancelable: true }}));
-                            opt.click();
-                        }}
+                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                    nativeInputValueSetter.call(el, val);
+                    
+                    const inputEvent = new Event("input", {{ bubbles: true }});
+                    el.dispatchEvent(inputEvent);
                     }}
-                }}
-                await delay(200);
 
-                await injectField("input[data-testid=receive-inventory-details_sr_quantity]", "{qty}");
-                await injectField("input-input_Package ID", "{package_id_val}");
-                await injectField("input-input_External package ID", "{metrc}");
-                await injectField("input-input_Lot name/batch ID", "{lot}");
-                await injectField("input-input_Expiration date", "{exp_date}", true);
-                await delay(50);
-                await injectField("input-input_Packaging date", "{pack_date}", true);
+                await injectField("input[name=externalBarcode]", "{package_id_val}");
+                await injectField("input[name=internalTrackCode]", "{ndc}"); 
+                await injectField("input[name=expirationDate]", "{exp_date}", true);
 
                 await delay(200);
-
-                const saveBtn = document.querySelector("button[data-testid=receive-inventory-details_button_save]");
-                if (saveBtn && !saveBtn.disabled) {{
-                    saveBtn.click();
-                    await delay(100);
-                    window.__TAURI__.event.emit("row_complete");
+                window.__TAURI__.event.emit("row_complete");
                 }}
             }})();
         "#

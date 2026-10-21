@@ -182,7 +182,7 @@ return (
                             checked={isBh} 
                             onChange={(e) => set_isBh(e.target.checked)} 
                         />
-                        Beyond Hello Formatting
+                        Use Lot# as Barcode
                     </label>
 
 
