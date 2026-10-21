@@ -121,96 +121,6 @@ fn format_excel_date(data: &Data) -> String {
 }
 
 #[tauri::command]
-fn get_hardware_key() -> Result<String, String> {
-    machine_uid::get().map_err(|_| "Failed to fetch Hardware UUID".to_string())
-}
-
-#[tauri::command]
-async fn auto_login(app: tauri::AppHandle, username: String, pass: String) -> Result<(), String> {
-    let sweed_window = app.get_webview_window("sweed").ok_or("Linked Sweed window not found.")?;
-
-    let safe_user = serde_json::to_string(&username).unwrap_or_default();
-    let safe_pass = serde_json::to_string(&pass).unwrap_or_default();
-
-    let (tx, mut rx) = channel(1);
-
-    let event_id = app.listen_any("login_success", move |_| {
-        let _ = tx.try_send(());
-    });
-
-    let js_payload = format!(r#"
-        (function() {{
-            if (window.__packagie_attempted || window.__packagie_injecting) return;
-
-            const userField = document.querySelector('input[data-testid="login-page_input_username"], input[placeholder="Username"], input[name="username"]');
-            const passField = document.querySelector('input[type="password"]');
-            const loginBtn = document.querySelector('button[type="submit"]');
-
-            if (userField && passField && loginBtn) {{
-                // Lock the injection process so the next Rust tick ignores this DOM
-                window.__packagie_injecting = true; 
-
-                const setNativeValue = (element, value) => {{
-                    const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-                    if (valueSetter) valueSetter.call(element, value);
-                    else element.value = value;
-                    element.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    element.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                }};
-
-                setNativeValue(userField, {});
-                setNativeValue(passField, {});
-                
-                // Give React 400ms to process the input events and enable the submit button
-                setTimeout(() => {{
-                    // Re-query the button to get its fresh state after the React render
-                    const currentBtn = document.querySelector('button[type="submit"]');
-                    
-                    // Guard: Ensure it exists and is NOT disabled
-                    // (We check both the native .disabled property and MUI's aria-disabled just in case)
-                    if (currentBtn && !currentBtn.disabled && currentBtn.getAttribute('aria-disabled') !== 'true') {{
-                        
-                        window.__packagie_attempted = true; // Permanent lock
-                        currentBtn.click();
-                        
-                        // We successfully delivered the payload and clicked. Kill the Rust loop!
-                        if (window.__TAURI__) window.__TAURI__.event.emit("login_success");
-                        
-                    }} else {{
-                        // The button was still disabled. Unlock so the next Rust loop tick can try again.
-                        window.__packagie_injecting = false;
-                    }}
-                }}, 400); 
-            }}
-        }})();
-    "#, safe_user, safe_pass);
-
-    tokio::spawn(async move {
-        for _ in 0..10 {
-            
-            let _ = sweed_window.eval(&js_payload);
-
-            // Wait for 1 second OR the success signal, whichever finishes first.
-            let sleep = sleep(Duration::from_millis(1000));
-            
-            tokio::select! {
-                _ = rx.recv() => {
-                    // Success! Kill the loop
-                    break;
-                }
-                _ = sleep => {
-                    // 1 second passed with no signal. Loop restarts and injects again.
-                }
-            }
-        }
-
-        app.unlisten(event_id);
-    });
-
-    Ok(())
-}
-
-#[tauri::command]
 async fn start_import(app: AppHandle, file_path: String, is_bh: bool) -> Result<(), String> {
     let sweed_window = app
         .get_webview_window("sweed")
@@ -404,7 +314,7 @@ fn main() {
             .build()?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![start_import, get_hardware_key, scan_empty_fields, save_empty_fields, auto_login])
+        .invoke_handler(tauri::generate_handler![start_import, scan_empty_fields, save_empty_fields])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
