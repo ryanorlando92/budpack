@@ -109,15 +109,26 @@ fn format_excel_date(data: &Data) -> String {
     if raw.trim().is_empty() {
         return String::new();
     }
-    if raw.contains('/') || raw.contains('-') {
-        return raw;
-    }
+
+    // 1. Handle Excel serial dates (e.g., 45220)
     if let Ok(serial) = raw.parse::<f64>() {
         if let Some(epoch) = NaiveDate::from_ymd_opt(1899, 12, 30) {
             let date = epoch + ChronoDuration::days(serial as i64);
-            return date.format("%m/%d/%Y").to_string();
+            return date.format("%Y-%m-%d").to_string();
         }
     }
+
+    // 2. Handle pre-formatted string dates from CSVs or text-formatted Excel columns
+    if raw.contains('/') || raw.contains('-') {
+        let formats = ["%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y", "%Y-%m-%d"];
+        for fmt in formats {
+            if let Ok(parsed_date) = NaiveDate::parse_from_str(raw.trim(), fmt) {
+                return parsed_date.format("%Y-%m-%d").to_string();
+            }
+        }
+    }
+
+    // Fallback if it matches no known format
     raw
 }
 
