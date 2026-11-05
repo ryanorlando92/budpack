@@ -360,7 +360,7 @@ dependencies = [
 
 [[package]]
 name = "budpack"
-version = "0.0.1"
+version = "1.0.0"
 dependencies = [
  "calamine",
  "chrono",

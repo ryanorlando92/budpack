@@ -1,52 +1,50 @@
-name: Release Builder
+name: "Publish Release"
 
 on:
   push:
     tags:
-      - 'v*' # This workflow only runs when you push a tag like "v1.0.0"
+      - 'v*'
 
 jobs:
-  build-and-release:
+  publish-tauri:
     permissions:
       contents: write
-
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-22.04, windows-latest] # Add macos-latest if you are supporting Mac
+        include:
+          - platform: 'windows-latest'
+          - platform: 'ubuntu-22.04'
 
     runs-on: ${{ matrix.platform }}
-    
     steps:
-      - name: Checkout repository code
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # Changed to 20/22 for wider compatibility, but keep 24 if your project requires it
+          node-version: lts/*
 
-      - name: Setup Rust compiler
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install frontend NPM packages
-        run: npm install
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Build Tauri App and Publish Release
-        uses: tauri-apps/tauri-action@v0
+      - name: Install frontend dependencies
+        run: npm ci # Replace with 'pnpm install' or 'yarn install' if using pnpm/yarn
+
+      - name: Build and Publish Tauri App
+        uses: tauri-apps/tauri-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Packagie ${{ github.ref_name }}'
-          releaseBody: "https://github.com/ryanorlando92/packagie/releases/latest"
-          releaseDraft: false
+          releaseName: 'Release ${{ github.ref_name }}'
+          releaseBody: 'Automated build assets for version ${{ github.ref_name }}'
+          releaseDraft: true
           prerelease: false

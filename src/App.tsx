@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -7,7 +7,7 @@ import { relaunch } from '@tauri-apps/plugin-process';
 import { confirm, message } from '@tauri-apps/plugin-dialog';
 import './App.css';
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 interface MissingField {
     row_idx: number;
