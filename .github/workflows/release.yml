@@ -39,7 +39,7 @@ jobs:
         run: npm ci # Replace with 'pnpm install' or 'yarn install' if using pnpm/yarn
 
       - name: Build and Publish Tauri App
-        uses: tauri-apps/tauri-action@v2
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
