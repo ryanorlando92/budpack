@@ -23,10 +23,21 @@
     }
   },
   
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUxOUQ1REM3OTc5MzYxMDAKUldRQVlaT1h4MTJkVVFTQngwa3VucGxRRmdMUUkwckZQUjBaaGt1VmJLNFpoY05pZyt0bVg1ZVEK",
+      "endpoints": [
+        "https://github.com/ryanorlando92/budpack/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
 
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "icon": [
       "icons/32x32.png",
