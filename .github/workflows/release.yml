@@ -48,5 +48,5 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Release ${{ github.ref_name }}'
           releaseBody: 'Automated build assets for version ${{ github.ref_name }}'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false

@@ -1,6 +1,6 @@
 [package]
 name = "budpack"
-version = "1.0.0"
+version = "1.1.0"
 description = "A SweedPOS Inventory Automation"
 authors = ["you"]
 edition = "2021"

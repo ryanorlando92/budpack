@@ -9,6 +9,8 @@ import './App.css';
 
 // const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+let hasCheckedForUpdates = false;
+
 interface MissingField {
     row_idx: number;
     col_idx: number;
@@ -46,6 +48,42 @@ export default function App() {
         }
         });
         return () => { unlisten.then(f => f()); };
+    }, []);
+
+    useEffect(() => {
+        if (hasCheckedForUpdates) return;
+        hasCheckedForUpdates = true;
+        console.log("Checking for updates...");
+
+        async function initUpdater() {
+            try {
+                const update = await check();
+                if (!update) {
+                    console.log("App is up to date");
+                    return;
+                };
+
+                console.log("Update Available");
+                const userWantsToUpdate = await confirm(
+                    `Budpack ${update.version} is available!\n\nRelease Notes:\n${update.body}\n\nDo you want to download and install it now?`, 
+                    { title: 'Update Available', kind: 'info', okLabel: 'Update Now', cancelLabel: 'Remind Me Later' }
+                );
+
+                if (userWantsToUpdate) {
+                    await update.downloadAndInstall();
+                    await relaunch();
+                }
+            } catch (error: any) {
+                console.error("Update error:", error);
+                // Fixed: Use String(error) instead of error.message
+                await message(`Failed to update Budpack: ${String(error)}`, {
+                    title: 'Update Error',
+                    kind: 'error'
+                });
+            }
+        }
+        
+        initUpdater();
     }, []);
 
     const handleSelectFile = async () => {
@@ -277,57 +315,3 @@ return (
     );
 
 }
-
-async function checkForAppUpdates() {
-    try {
-        console.log("Checking for updates...");
-        
-        const update = await check();
-
-        if (!update) {
-            console.log("App is up to date.");
-            return; 
-        }
-
-        const userWantsToUpdate = await confirm(
-            `Budpack ${update.version} is available!\n\nRelease Notes:\n${update.body}\n\nDo you want to download and install it now?`, 
-            {
-                title: 'Update Available',
-                kind: 'info',
-                okLabel: 'Update Now',
-                cancelLabel: 'Remind Me Later'
-            }
-        );
-
-        if (userWantsToUpdate) {
-            console.log("Downloading and installing update...");
-            
-            await update.downloadAndInstall((event) => {
-                switch (event.event) {
-                    case 'Started':
-                        console.log(`Started downloading ${event.data.contentLength} bytes`);
-                        break;
-                    case 'Progress':
-                        console.log(`Downloaded ${event.data.chunkLength} bytes`);
-                        break;
-                    case 'Finished':
-                        console.log('Download finished');
-                        break;
-                }
-            });
-
-            console.log("Install complete. Relaunching...");
-            
-            await relaunch();
-        }
-        
-    } catch (error: any) {
-        console.error("Failed to check for updates:", error);
-        await message(`Failed to update Budpack: ${error.message}`, {
-            title: 'Update Error',
-            kind: 'error'
-        });
-    }
-}
-
-checkForAppUpdates();
